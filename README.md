@@ -1,8 +1,16 @@
-# HFSM
-Hierarchical Finite State Machine Implementation in Python
+# Micropython HFSM
+Hierarchical Finite State Machine Implementation in Micro-Python
+
+This project is a fork of https://github.com/debbynirwan/hfsm and aims to implement a HFSM in Micro Python.
+
+Changes implemented to operate on Micro Python:
+* Removed typing
+* Adding dummy print based logger as logging isn't included in mp by default
+
+Test on Micro Python version 1.18
 
 ## About
-hfsm is a python library implementation of Hierarchical Finite State Machine that can be used in many fields such as 
+micropython-hfsm is a python library implementation of Hierarchical Finite State Machine that can be used in many fields such as 
 robotics, video game, etc.
 
 This library supports:
@@ -15,10 +23,8 @@ Please read this article on Medium to understand HFSM:
 https://towardsdatascience.com/hierarchical-finite-state-machine-for-ai-acting-engine-9b24efc66f2
 
 ## Installation
-```commandline
-pip3 install hfsm
-```
-or, you can clone this repository.
+
+Clone this repository and copy hfsm to your lib folder
 
 ## Example
 

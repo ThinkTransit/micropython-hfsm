@@ -18,18 +18,32 @@ License:
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import logging
-from typing import List, Any, Optional, Callable
+try:
+    import logging
+    log = logging.getLogger(__name__)
+except ImportError:
+    class logging:
+        def critical(self, entry):
+            print('CRITICAL: ' + entry)
+        def error(self, entry):
+            print('ERROR: ' + entry)
+        def warning(self, entry):
+            print('WARNING: ' + entry)
+        def info(self, entry):
+            print('INFO: ' + entry)
+        def debug(self, entry):
+            print('DEBUG: ' + entry)
+    log = logging()
 
 
 class State(object):
 
     def __init__(self, name, child_sm=None):
         self._name = name
-        self._entry_callbacks: List[Callable[[Any], None]] = []
-        self._exit_callbacks: List[Callable[[Any], None]] = []
-        self._child_state_machine: Optional[StateMachine] = child_sm
-        self._parent_state_machine: Optional[StateMachine] = None
+        self._entry_callbacks = []
+        self._exit_callbacks = []
+        self._child_state_machine = child_sm
+        self._parent_state_machine = None
 
     def __repr__(self):
         return f"State={self._name}"
@@ -43,13 +57,13 @@ class State(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def __call__(self, data: Any):
+    def __call__(self, data):
         pass
 
-    def on_entry(self, callback: Callable[[Any], None]):
+    def on_entry(self, callback):
         self._entry_callbacks.append(callback)
 
-    def on_exit(self, callback: Callable[[], None]):
+    def on_exit(self, callback):
         self._exit_callbacks.append(callback)
 
     def set_child_sm(self, child_sm):
@@ -68,14 +82,14 @@ class State(object):
             raise ValueError("child_sm and parent_sm must be different")
         self._parent_state_machine = parent_sm
 
-    def start(self, data: Any):
+    def start(self, data):
         logging.debug(f"Entering {self._name}")
         for callback in self._entry_callbacks:
             callback(data)
         if self._child_state_machine is not None:
             self._child_state_machine.start(data)
 
-    def stop(self, data: Any):
+    def stop(self, data):
         logging.debug(f"Exiting {self._name}")
         for callback in self._exit_callbacks:
             callback(data)
@@ -138,16 +152,16 @@ class Transition(object):
         self._event = event
         self._source_state = src
         self._destination_state = dst
-        self._condition: Optional[Callable[[Any], bool]] = None
-        self._action: Optional[Callable[[Any], None]] = None
+        self._condition = None
+        self._action = None
 
-    def __call__(self, data: Any):
+    def __call__(self, data):
         raise NotImplementedError
 
-    def add_condition(self, callback: Callable[[Any], bool]):
+    def add_condition(self, callback):
         self._condition = callback
 
-    def add_action(self, callback: Callable[[Any], Any]):
+    def add_action(self, callback):
         self._action = callback
 
     @property
@@ -171,10 +185,9 @@ class NormalTransition(Transition):
         self._from = source_state
         self._to = destination_state
 
-    def __call__(self, data: Any):
+    def __call__(self, data):
         if not self._condition or self._condition(data):
-            logging.info(f"NormalTransition from {self._from} to {self._to} "
-                         f"caused by {self._event}")
+            logging.info(f"NormalTransition from {self._from} to {self._to} caused by {self._event}")
             if self._action:
                 self._action(data)
             self._from.stop(data)
@@ -190,7 +203,7 @@ class SelfTransition(Transition):
         super().__init__(event, source_state, source_state)
         self._state = source_state
 
-    def __call__(self, data: Any):
+    def __call__(self, data):
         if not self._condition or self._condition(data):
             logging.info(f"SelfTransition {self._state}")
             if self._action:
@@ -208,7 +221,7 @@ class NullTransition(Transition):
         super().__init__(event, source_state, source_state)
         self._state = source_state
 
-    def __call__(self, data: Any):
+    def __call__(self, data):
         if not self._condition or self._condition(data):
             logging.info(f"NullTransition {self._state}")
             if self._action:
@@ -222,12 +235,12 @@ class StateMachine(object):
 
     def __init__(self, name):
         self._name = name
-        self._states: List[State] = []
-        self._events: List[Event] = []
-        self._transitions: List[Transition] = []
-        self._initial_state: Optional[State] = None
-        self._current_state: Optional[State] = None
-        self._exit_callback: Optional[Callable[[ExitState, Any], None]] = None
+        self._states = []
+        self._events = []
+        self._transitions = []
+        self._initial_state = None
+        self._current_state = None
+        self._exit_callback = None
         self._exit_state = ExitState()
         self.add_state(self._exit_state)
         self._exited = True
@@ -244,14 +257,14 @@ class StateMachine(object):
     def __str__(self):
         return self._name
 
-    def start(self, data: Any):
+    def start(self, data=None):
         if not self._initial_state:
             raise ValueError("initial state is not set")
         self._current_state = self._initial_state
         self._exited = False
         self._current_state.start(data)
 
-    def stop(self, data: Any):
+    def stop(self, data=None):
         if not self._initial_state:
             raise ValueError("initial state is not set")
         if self._current_state is None:
@@ -280,31 +293,28 @@ class StateMachine(object):
     def add_event(self, event: Event):
         self._events.append(event)
 
-    def add_transition(self, src: State, dst: State, evt: Event) -> \
-            Optional[Transition]:
+    def add_transition(self, src: State, dst: State, evt: Event):
         transition = None
         if src in self._states and dst in self._states and evt in self._events:
             transition = NormalTransition(src, dst, evt)
             self._transitions.append(transition)
         return transition
 
-    def add_self_transition(self, state: State, evt: Event) -> \
-            Optional[Transition]:
+    def add_self_transition(self, state, evt):
         transition = None
         if state in self._states and evt in self._events:
             transition = SelfTransition(state, evt)
             self._transitions.append(transition)
         return transition
 
-    def add_null_transition(self, state: State, evt: Event) -> \
-            Optional[Transition]:
+    def add_null_transition(self, state, evt):
         transition = None
         if state in self._states and evt in self._events:
             transition = NullTransition(state, evt)
             self._transitions.append(transition)
         return transition
 
-    def trigger_event(self, evt: Event, data: Any = None,
+    def trigger_event(self, evt: Event, data = None,
                       propagate: bool = False):
         transition_valid = False
         if not self._initial_state:
@@ -314,8 +324,7 @@ class StateMachine(object):
             raise ValueError("state machine has not been started")
 
         if propagate and self._current_state.has_child_sm():
-            logging.debug(f"Propagating evt {evt} from {self} to "
-                          f"{self._current_state.child_sm}")
+            logging.debug(f"Propagating evt {evt} from {self} to {self._current_state.child_sm}")
             self._current_state.child_sm.trigger_event(evt, data, propagate)
         else:
             for transition in self._transitions:
@@ -330,8 +339,7 @@ class StateMachine(object):
                     transition_valid = True
                     break
             if not transition_valid:
-                logging.warning(f"Event {evt} is not valid in state "
-                                f"{self._current_state}")
+                logging.warning(f"Event {evt} is not valid in state {self._current_state}")
 
     @property
     def exit_state(self):
