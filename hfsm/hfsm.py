@@ -83,14 +83,14 @@ class State(object):
         self._parent_state_machine = parent_sm
 
     def start(self, data):
-        logging.debug(f"Entering {self._name}")
+        log.debug(f"Entering {self._name}")
         for callback in self._entry_callbacks:
             callback(data)
         if self._child_state_machine is not None:
             self._child_state_machine.start(data)
 
     def stop(self, data):
-        logging.debug(f"Exiting {self._name}")
+        log.debug(f"Exiting {self._name}")
         for callback in self._exit_callbacks:
             callback(data)
         if self._child_state_machine is not None:
@@ -187,7 +187,7 @@ class NormalTransition(Transition):
 
     def __call__(self, data):
         if not self._condition or self._condition(data):
-            logging.info(f"NormalTransition from {self._from} to {self._to} caused by {self._event}")
+            log.info(f"NormalTransition from {self._from} to {self._to} caused by {self._event}")
             if self._action:
                 self._action(data)
             self._from.stop(data)
@@ -205,7 +205,7 @@ class SelfTransition(Transition):
 
     def __call__(self, data):
         if not self._condition or self._condition(data):
-            logging.info(f"SelfTransition {self._state}")
+            log.info(f"SelfTransition {self._state}")
             if self._action:
                 self._action(data)
             self._state.stop(data)
@@ -223,7 +223,7 @@ class NullTransition(Transition):
 
     def __call__(self, data):
         if not self._condition or self._condition(data):
-            logging.info(f"NullTransition {self._state}")
+            log.info(f"NullTransition {self._state}")
             if self._action:
                 self._action(data)
 
@@ -257,14 +257,14 @@ class StateMachine(object):
     def __str__(self):
         return self._name
 
-    def start(self, data=None):
+    def start(self, data):
         if not self._initial_state:
             raise ValueError("initial state is not set")
         self._current_state = self._initial_state
         self._exited = False
         self._current_state.start(data)
 
-    def stop(self, data=None):
+    def stop(self, data):
         if not self._initial_state:
             raise ValueError("initial state is not set")
         if self._current_state is None:
@@ -324,7 +324,7 @@ class StateMachine(object):
             raise ValueError("state machine has not been started")
 
         if propagate and self._current_state.has_child_sm():
-            logging.debug(f"Propagating evt {evt} from {self} to {self._current_state.child_sm}")
+            log.debug(f"Propagating evt {evt} from {self} to {self._current_state.child_sm}")
             self._current_state.child_sm.trigger_event(evt, data, propagate)
         else:
             for transition in self._transitions:
@@ -339,7 +339,7 @@ class StateMachine(object):
                     transition_valid = True
                     break
             if not transition_valid:
-                logging.warning(f"Event {evt} is not valid in state {self._current_state}")
+                log.warning(f"Event {evt} is not valid in state {self._current_state}")
 
     @property
     def exit_state(self):
